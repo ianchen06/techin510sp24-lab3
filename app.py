@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+import datetime
 
 import streamlit as st
 import psycopg2
@@ -16,34 +17,46 @@ cur.execute(
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
         prompt TEXT NOT NULL,
+        is_favorite BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """
 )
+con.commit()
 
 @dataclass
 class Prompt:
     title: str
     prompt: str
+    is_favorite: bool
+    created_at: str = None # make this datetime type ()
+    updated_at: str = None # make this datetime type ()
 
-def prompt_form(prompt=Prompt("","")):
+def prompt_form(prompt=Prompt("","", False)):
     """
     TODO: Add validation to the form, so that the title and prompt are required.
     """
     with st.form(key="prompt_form", clear_on_submit=True):
-        title = st.text_input("Title", value=prompt.title)
-        prompt = st.text_area("Prompt", height=200, value=prompt.prompt)
+        # layout your fields here
+        title          = st.text_input("Title", value=prompt.title)
+        prompt_content = st.text_area("Prompt", height=200, value=prompt.prompt)
+        is_favorite    = st.checkbox("Favorite", value=prompt.is_favorite)
+        
+        
         submitted = st.form_submit_button("Submit")
         if submitted:
-            return Prompt(title, prompt)
+            return Prompt(title, prompt_content, is_favorite)
 
 st.title("Promptbase")
 st.subheader("A simple app to store and retrieve prompts")
 
 prompt = prompt_form()
 if prompt:
-    cur.execute("INSERT INTO prompts (title, prompt) VALUES (%s, %s)", (prompt.title, prompt.prompt,))
+    cur.execute(
+        "INSERT INTO prompts (title, prompt, is_favorite) VALUES (%s, %s, %s)", 
+        (prompt.title, prompt.prompt, prompt.is_favorite,)
+    )
     con.commit()
     st.success("Prompt added successfully!")
 
@@ -61,3 +74,5 @@ for p in prompts:
             cur.execute("DELETE FROM prompts WHERE id = %s", (p[0],))
             con.commit()
             st.rerun()
+
+con.close()
